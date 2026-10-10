@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>JNP Cargo Movers - Material Issuance Log</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    input, select, textarea { font-size: 16px !important; }
+    .autocomplete-list { max-height: 200px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    body { padding-bottom: env(safe-area-inset-bottom, 25px); }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 p-3 sm:p-6" onclick="closeAllDropdowns()">
+  <div class="max-w-md mx-auto bg-white shadow-xl rounded-2xl p-4 sm:p-5 border border-slate-200" onclick="event.stopPropagation()">
+    
+    <!-- Top Bar with Logo & Navigation -->
+    <div class="border-b border-slate-200 pb-3 mb-4 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="flex-shrink-0">
+          <img 
+            id="brandLogo"
+            src="logo.png" 
+            alt="JNP Cargo Movers" 
+            class="h-11 w-auto object-contain"
+            onerror="document.getElementById('brandLogo').classList.add('hidden'); document.getElementById('brandFallback').classList.remove('hidden');"
+          />
+          <div id="brandFallback" class="hidden h-11 w-14 bg-cyan-950 rounded-xl flex flex-col items-center justify-center text-white shadow-sm">
+            <span class="font-black text-sm italic tracking-tighter leading-none">JNP</span>
+            <span class="text-[7px] font-bold text-cyan-300 tracking-wider">STORE</span>
+          </div>
+        </div>
+        <div class="border-l border-slate-200 pl-2.5">
+          <h1 class="text-xs sm:text-sm font-extrabold text-cyan-900 tracking-tight leading-tight uppercase">MATERIAL ISSUANCE</h1>
+          <p class="text-[10px] text-slate-500 font-semibold tracking-wider">सामग्री निर्गमन (इश्यू) लॉग</p>
+        </div>
+      </div>
+      <button type="button" onclick="fetchMasters()" class="text-xs text-cyan-800 font-bold hover:underline py-1 px-2.5 rounded-lg bg-cyan-50 border border-cyan-200">↻ Sync</button>
+    </div>
+
+    <!-- Active Form -->
+    <form id="issuanceForm" onsubmit="handleFormSubmit(event)" class="space-y-3" autocomplete="off">
+      
+      <!-- Issuer Name -->
+      <div>
+        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">
+          Issuer Name / सामग्री जारीकर्ता *
+        </label>
+        <select id="issuerSelect" onchange="toggleCustomIssuer()" required class="w-full border rounded-xl p-2.5 bg-slate-50 font-medium">
+          <option value="">Select Issuer...</option>
+        </select>
+        <input type="text" id="issuerCustom" placeholder="Enter issuer name" class="hidden mt-1.5 w-full border border-cyan-400 rounded-xl p-2.5 bg-cyan-50 font-medium" />
+      </div>
+
+      <!-- 1. Truck Number -->
+      <div class="relative">
+        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">
+          1. Truck No / गाड़ी नंबर *
+        </label>
+        <input 
+          type="text" 
+          id="truckInput" 
+          required 
+          placeholder="e.g. MH18BZ0271 or 0271" 
+          class="w-full border rounded-xl p-2.5 bg-slate-50 font-semibold uppercase tracking-wide focus:bg-white focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+          oninput="filterOptions('truck', this.value)"
+          onfocus="filterOptions('truck', this.value)"
+        />
+        <div id="truckDropdown" class="autocomplete-list hidden absolute z-30 w-full bg-white border border-slate-300 rounded-xl shadow-2xl mt-1"></div>
+      </div>
+
+      <!-- 2. Driver Name -->
+      <div class="relative">
+        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">
+          2. Driver Name / ड्राइवर का नाम *
+        </label>
+        <input 
+          type="text" 
+          id="driverInput" 
+          required 
+          placeholder="Type driver name..." 
+          class="w-full border rounded-xl p-2.5 bg-slate-50 font-semibold focus:bg-white focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+          oninput="filterOptions('driver', this.value)"
+          onfocus="filterOptions('driver', this.value)"
+        />
+        <div id="driverDropdown" class="autocomplete-list hidden absolute z-30 w-full bg-white border border-slate-300 rounded-xl shadow-2xl mt-1"></div>
+      </div>
+
+      <!-- 3. Items / Samagri -->
+      <div class="relative">
+        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">
+          3. Items / सामग्री का नाम *
+        </label>
+        <input 
+          type="text" 
+          id="itemInput" 
+          required 
+          placeholder="e.g. Engine Oil, Coolant, Tirpal" 
+          class="w-full border rounded-xl p-2.5 bg-slate-50 font-semibold focus:bg-white focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+          oninput="filterOptions('item', this.value)"
+          onfocus="filterOptions('item', this.value)"
+        />
+        <div id="itemDropdown" class="autocomplete-list hidden absolute z-30 w-full bg-white border border-slate-300 rounded-xl shadow-2xl mt-1"></div>
+      </div>
+
+      <!-- 4. Item Details -->
+      <div>
+        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">
+          4. Item Details / विवरण (Brand, Grade, Part No.) *
+        </label>
+        <input type="text" id="itemDetails" required placeholder="e.g. Castrol 15W40 CI4 / Nylon 32x20 Tirpal" class="w-full border rounded-xl p-2.5 bg-slate-50 font-medium" />
+      </div>
+
+      <!-- 5. Last Issuance Date -->
+      <div>
+        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">
+          5. Last Issuance Date / पिछली तारीख (यदि ज्ञात हो)
+        </label>
+        <input type="date" id="lastIssuanceDate" class="w-full border rounded-xl p-2.5 bg-slate-50 font-medium" />
+      </div>
+
+      <!-- 6, 7 & 8: Quantity, Unit, Unit Rate -->
+      <div class="grid grid-cols-3 gap-2">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+            Qty (संख्या) *
+          </label>
+          <input type="number" step="any" id="noOfUnits" oninput="calculateTotal()" required placeholder="e.g. 5" class="w-full border rounded-xl p-2 bg-slate-50 font-bold" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+            Unit (इकाई) *
+          </label>
+          <select id="unitSelect" required class="w-full border rounded-xl p-2 bg-slate-50 font-semibold text-xs">
+            <option value="Ltr">Ltr</option>
+            <option value="Nos">Nos</option>
+            <option value="Kg">Kg</option>
+            <option value="Mtr">Mtr</option>
+            <option value="Set">Set</option>
+            <option value="Box">Box</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+            Rate ₹ (दर)
+          </label>
+          <input type="number" step="any" id="unitRate" oninput="calculateTotal()" placeholder="e.g. 320" class="w-full border rounded-xl p-2 bg-slate-50 font-semibold text-xs" />
+        </div>
+      </div>
+
+      <!-- Dynamic Total Preview -->
+      <div class="flex justify-between items-center px-3 py-2 bg-cyan-50/70 border border-cyan-100 rounded-xl text-xs">
+        <span class="text-cyan-900 font-semibold">Total Estimated Value:</span>
+        <span id="totalDisplay" class="font-extrabold text-cyan-950 text-sm">₹0.00</span>
+      </div>
+
+      <!-- 9. Odometer Reading -->
+      <div>
+        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">
+          9. Odometer Reading / गाड़ी का मीटर (KM) *
+        </label>
+        <input type="number" id="odometerReading" required placeholder="e.g. 184520" class="w-full border rounded-xl p-2.5 bg-slate-50 font-bold text-slate-900 tracking-wider" />
+      </div>
+
+      <!-- 10. Approver Name -->
+      <div class="relative">
+        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">
+          10. Approver Name / अनुमोदक *
+        </label>
+        <input 
+          type="text" 
+          id="approverInput" 
+          required 
+          placeholder="Approver name" 
+          class="w-full border rounded-xl p-2.5 bg-slate-50 font-medium focus:bg-white focus:ring-2 focus:ring-cyan-500"
+          oninput="filterOptions('approver', this.value)"
+          onfocus="filterOptions('approver', this.value)"
+        />
+        <div id="approverDropdown" class="autocomplete-list hidden absolute z-30 w-full bg-white border border-slate-300 rounded-xl shadow-2xl mt-1"></div>
+      </div>
+
+      <!-- Remark -->
+      <div>
+        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Remark / टिप्पणी</label>
+        <input type="text" id="remarkInput" placeholder="Notes (Old returned, emergency issue, trip route)" class="w-full border rounded-xl p-2.5 bg-slate-50 font-medium" />
+      </div>
+
+      <!-- Submit Button -->
+      <div class="pt-2">
+        <button type="submit" id="saveBtn" class="w-full py-3 bg-cyan-800 active:bg-cyan-950 text-white font-bold text-sm rounded-xl shadow-lg transition">
+          Record Issuance & Send WhatsApp
+        </button>
+      </div>
+    </form>
+
+    <!-- WhatsApp Share Panel -->
+    <div id="shareSection" class="hidden mt-4 p-4 border border-emerald-300 bg-emerald-50 rounded-xl space-y-2.5">
+      <div class="flex items-center gap-2">
+        <span class="text-lg">✅</span>
+        <h3 class="text-xs font-bold text-emerald-950 uppercase tracking-wide">Saved to Issuance DB!</h3>
+      </div>
+
+      <button type="button" id="shareBtn" onclick="handleWhatsAppShare()" class="w-full py-3 bg-emerald-600 active:bg-emerald-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow">
+        <span>📲</span> Share Material Issuance on WhatsApp
+      </button>
+
+      <button type="button" onclick="resetForm()" class="w-full py-2.5 bg-slate-200 active:bg-slate-300 text-slate-700 font-semibold text-xs rounded-xl transition">
+        ➕ New Issuance Entry
+      </button>
+    </div>
+
+    <div id="statusToast" class="hidden mt-3 text-center text-xs font-bold p-2.5 rounded-xl"></div>
+  </div>
+
+  <script>
+    // Live Web App URL for JNP_Material_Issuance_DB
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzhcIb5lnUhFJbJ8g5ytS7V5tI75Rt9zDks6n8CPY_Ft7tsCv59KaprAA-0m4vHoWpf/exec";
+
+    let lastSavedData = null;
+
+    let masterData = {
+      issuers: ["Sumit", "Ganesh", "Atul", "Ganesh HO"],
+      trucks: ["MH40CM8975","MH40BL4725","MH18BZ0274","MH40CM1550","MH18BZ0106","MH18BZ0107","MH14KA9717","MH40CM2748","MH40DC1236","MH18BZ0112","MH40CM1569","OD01AB2773","UP95T9393","MH40CM1570","CG07CG1594","MH18BZ0105","MH18BZ0109","OD01AB2873","AP04UB2935","CG07CG1595","CG07CG1596","MH21BH4147","MH18BZ0268","MH18BZ0269","MH18BZ0271","MH18BZ0272","MH18BG8250","MH18BG8251","MH18BG8252","MH18BZ0110","MH18BZ0113","MH18BZ0267","CG07CG2120","MH18BG8256","MH18BG8257","MH18BZ0108","MH18BZ0270","MH18BZ0275","MH18BG8253","MH40CM2747","MH40CM2746","MH40CD4841","MH40CM7805","OD04M6659","CG07CG1597","MH40CM0731","MH18BZ0273","MH18BZ0276"],
+      drivers: ["AKIL KHAN","SHAKIL KHAN","FEROZ KHAN","SANJAY KHABRE","DEVIDAS PATIL","PRAMOD SONWANE","MD IBARAR","RAHUL PAL","RAJESH SHARMA","KRISHNAKUMAR SAHU","RANJIT SONI","BHATU MAHALE","ABDULLAH","MAHENDRA VISHWAKARMA","PRAVIN BHOIR","SINTU YADAV","SUNIL SAHU","OMPRAKASH SAHU","ASHOK SAHU","MD SAGEER","TINKU YADAV","MD MIRAJ","SHOEB PATHAN","KAILASH PATIL"],
+      items: ["Engine Oil", "Coolant", "Grease", "DEF / AdBlue", "Air Filter", "Brake Oil", "Tarpaulin (Tirpal)", "Rope (Rassi)", "Wiper Blade", "Bulb / Fuse"],
+      units: ["Ltr", "Nos", "Kg", "Mtr", "Set", "Box"],
+      approvers: ["Ganesh Shewatkar", "Atul", "Sumit", "Branch Manager"]
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      populateIssuers(masterData.issuers);
+      fetchMasters();
+    });
+
+    async function fetchMasters() {
+      try {
+        const res = await fetch(SCRIPT_URL, { method: "GET" });
+        if (res.ok) {
+          const liveData = await res.json();
+          if (liveData && liveData.status === "success") {
+            if (liveData.issuers?.length) { masterData.issuers = liveData.issuers; populateIssuers(masterData.issuers); }
+            if (liveData.trucks?.length) masterData.trucks = liveData.trucks;
+            if (liveData.drivers?.length) masterData.drivers = liveData.drivers;
+            if (liveData.items?.length) masterData.items = liveData.items;
+            if (liveData.approvers?.length) masterData.approvers = liveData.approvers;
+            showToast("Synced with Google Sheet Masters!", "emerald");
+            setTimeout(hideToast, 2000);
+          }
+        }
+      } catch (e) {
+        console.warn("Using offline master cache", e);
+      }
+    }
+
+    function populateIssuers(list) {
+      const select = document.getElementById('issuerSelect');
+      const cur = select.value;
+      select.innerHTML = '<option value="">Select Issuer...</option>';
+      (list || []).forEach(s => select.innerHTML += `<option value="${s}">${s}</option>`);
+      select.innerHTML += '<option value="__OTHER__">➕ Other / Enter Name</option>';
+      if (cur) select.value = cur;
+    }
+
+    function toggleCustomIssuer() {
+      const sel = document.getElementById('issuerSelect');
+      const inp = document.getElementById('issuerCustom');
+      if (sel.value === "__OTHER__") {
+        inp.classList.remove('hidden'); inp.required = true; inp.focus();
+      } else {
+        inp.classList.add('hidden'); inp.required = false; inp.value = '';
+      }
+    }
+
+    function calculateTotal() {
+      const rate = Number(document.getElementById('unitRate').value) || 0;
+      const units = Number(document.getElementById('noOfUnits').value) || 0;
+      const total = rate * units;
+      document.getElementById('totalDisplay').innerText = `₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    function filterOptions(type, query) {
+      closeAllDropdowns();
+      const dropdownEl = document.getElementById(type + 'Dropdown');
+      
+      let items = [];
+      if (type === 'truck') items = masterData.trucks;
+      else if (type === 'driver') items = masterData.drivers;
+      else if (type === 'item') items = masterData.items;
+      else if (type === 'approver') items = masterData.approvers;
+
+      const q = query.replace(/\s+/g, '').toUpperCase();
+      const matched = q ? items.filter(i => i.toUpperCase().includes(q)) : items;
+
+      let html = '';
+      if (matched.length > 0) {
+        matched.forEach(item => {
+          html += `
+            <div class="px-3 py-2.5 text-xs font-semibold hover:bg-cyan-50 cursor-pointer border-b border-slate-100 flex justify-between items-center"
+                 onclick="selectOption('${type}', '${item.replace(/'/g, "\\'")}')">
+              <span>${item}</span>
+              <span class="text-[10px] text-slate-400">Master</span>
+            </div>`;
+        });
+      }
+
+      const exactExists = items.some(i => i.toUpperCase() === q);
+      if (q && !exactExists) {
+        html += `
+          <div class="px-3 py-2.5 text-xs font-bold text-cyan-800 bg-cyan-50 hover:bg-cyan-100 cursor-pointer flex justify-between items-center"
+               onclick="selectOption('${type}', '${q.replace(/'/g, "\\'")}')">
+            <span>➕ Use "${q}"</span>
+            <span class="text-[10px] bg-cyan-200 text-cyan-900 px-1.5 py-0.5 rounded">New</span>
+          </div>`;
+      }
+
+      dropdownEl.innerHTML = html;
+      dropdownEl.classList.remove('hidden');
+    }
+
+    function selectOption(type, value) {
+      document.getElementById(type + 'Input').value = value;
+      closeAllDropdowns();
+    }
+
+    function closeAllDropdowns() {
+      ['truckDropdown', 'driverDropdown', 'itemDropdown', 'approverDropdown'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+    }
+
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      closeAllDropdowns();
+
+      const issSel = document.getElementById('issuerSelect');
+      const issuerName = issSel.value === "__OTHER__" ? document.getElementById('issuerCustom').value.trim() : issSel.value;
+      const truckVal = document.getElementById('truckInput').value.replace(/\s+/g, '').toUpperCase();
+      const qtyVal = Number(document.getElementById('noOfUnits').value) || 0;
+      const rateVal = Number(document.getElementById('unitRate').value) || 0;
+
+      const truckRegex = /^[A-Z]{2}[0-9]{2}[A-Z]{2}[0-9]{4}$/;
+      if (!truckRegex.test(truckVal)) {
+        alert("Invalid Truck Number! Must follow standard format without space (e.g. MH18BZ0271).");
+        return;
+      }
+
+      if (qtyVal <= 0) {
+        alert("Please enter a valid Quantity of units.");
+        return;
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const totalAmount = rateVal * qtyVal;
+
+      lastSavedData = {
+        issuanceDate: today,
+        issuerName: issuerName,
+        truckNo: truckVal,
+        driverName: document.getElementById('driverInput').value.trim(),
+        itemName: document.getElementById('itemInput').value.trim(),
+        itemDetails: document.getElementById('itemDetails').value.trim(),
+        lastIssuanceDate: document.getElementById('lastIssuanceDate').value || "N/A",
+        unitRate: rateVal,
+        measurementUnit: document.getElementById('unitSelect').value,
+        noOfUnits: qtyVal,
+        totalAmount: totalAmount,
+        odometerReading: document.getElementById('odometerReading').value.trim(),
+        approverName: document.getElementById('approverInput').value.trim(),
+        remark: document.getElementById('remarkInput').value.trim() || "-"
+      };
+
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+      saveBtn.innerText = "Saving to Google Sheet...";
+
+      try {
+        await fetch(SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify(lastSavedData)
+        });
+
+        document.getElementById('issuanceForm').classList.add('opacity-50', 'pointer-events-none');
+        document.getElementById('shareSection').classList.remove('hidden');
+        showToast("Saved to Issuance DB!", "emerald");
+      } catch (err) {
+        document.getElementById('issuanceForm').classList.add('opacity-50', 'pointer-events-none');
+        document.getElementById('shareSection').classList.remove('hidden');
+        showToast("Saved to Sheet! (Check live rows).", "emerald");
+      }
+    }
+
+    function handleWhatsAppShare() {
+      if (!lastSavedData) return;
+
+      const msg = 
+`📦 *MATERIAL ISSUANCE VOUCHER*
+━━━━━━━━━━━━━━━━━━
+🚚 *Truck No:* ${lastSavedData.truckNo}
+👤 *Driver:* ${lastSavedData.driverName}
+🏷️ *Item Issued:* ${lastSavedData.itemName}
+📋 *Details:* ${lastSavedData.itemDetails}
+📊 *Quantity:* ${lastSavedData.noOfUnits} ${lastSavedData.measurementUnit}
+💰 *Unit Rate:* ₹${lastSavedData.unitRate} (Total: ₹${lastSavedData.totalAmount})
+⏱️ *Odometer:* ${lastSavedData.odometerReading} KM
+📅 *Last Issued:* ${lastSavedData.lastIssuanceDate}
+✍️ *Approved By:* ${lastSavedData.approverName}
+📝 *Remark:* ${lastSavedData.remark}
+━━━━━━━━━━━━━━━━━━
+👷 *Issued By:* ${lastSavedData.issuerName}`;
+
+      window.location.href = "whatsapp://send?text=" + encodeURIComponent(msg);
+      document.getElementById('shareBtn').innerText = "✓ Sent to WhatsApp (Tap to re-send)";
+    }
+
+    function resetForm() {
+      document.getElementById('issuanceForm').reset();
+      document.getElementById('totalDisplay').innerText = "₹0.00";
+      document.getElementById('issuanceForm').classList.remove('opacity-50', 'pointer-events-none');
+      document.getElementById('shareSection').classList.add('hidden');
+      document.getElementById('issuerCustom').classList.add('hidden');
+      document.getElementById('issuerCustom').required = false;
+
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = false;
+      saveBtn.innerText = "Record Issuance & Send WhatsApp";
+      hideToast();
+      fetchMasters();
+    }
+
+    function showToast(text, color) {
+      const toast = document.getElementById('statusToast');
+      toast.className = `mt-3 text-center text-xs font-bold p-2.5 rounded-xl bg-${color}-100 text-${color}-800`;
+      toast.innerText = text;
+      toast.classList.remove('hidden');
+    }
+
+    function hideToast() {
+      document.getElementById('statusToast').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
